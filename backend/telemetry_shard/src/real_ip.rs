@@ -16,6 +16,7 @@
 
 use std::net::{IpAddr, SocketAddr};
 
+
 /**
 Extract the "real" IP address of the connection by looking at headers
 set by proxies (this is inspired by Actix Web's implementation of the feature).
@@ -78,16 +79,18 @@ fn pick_best_ip_from_options(
     let realip = forwarded
         .as_ref()
         .and_then(|val| {
-            let addr = get_first_addr_from_forwarded_header(val)?;
-            Some((addr, Source::ForwardedHeader))
-        })
-        .or_else(|| {
-            // fall back to X-Forwarded-For
             forwarded_for.as_ref().and_then(|val| {
                 let addr = get_first_addr_from_x_forwarded_for_header(val)?;
                 Some((addr, Source::XForwardedForHeader))
             })
         })
+        // .or_else(|| {
+        //     // fall back to X-Forwarded-For
+        //     forwarded_for.as_ref().and_then(|val| {
+        //         let addr = get_first_addr_from_x_forwarded_for_header(val)?;
+        //         Some((addr, Source::XForwardedForHeader))
+        //     })
+        // })
         .or_else(|| {
             // fall back to X-Real-IP
             real_ip.as_ref().and_then(|val| {
@@ -125,6 +128,12 @@ fn pick_best_ip_from_options(
 /// Forwarded: for=192.0.2.60;proto=http;by=203.0.113.43
 /// Forwarded: for=192.0.2.43, for=198.51.100.17
 /// ```
+
+fn get_first_addr_from_x_forwarded_for_header(value: &str) -> Option<&str> {
+    // 提取并返回列表中的第一个 IP 地址
+    value.split(',').map(|val| val.trim()).next()
+}
+
 fn get_first_addr_from_forwarded_header(value: &str) -> Option<&str> {
     let first_values = value.split(',').next()?;
 
