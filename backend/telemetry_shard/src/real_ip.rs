@@ -38,10 +38,10 @@ If still no luck, look for the X-Real-IP header, which we expect to contain a si
 If that _still_ doesn't work, fall back to the socket address of the connection.
 */
 pub fn real_ip(addr: SocketAddr, headers: &hyper::HeaderMap) -> (IpAddr, Source) {
-    let forwarded = headers.get("forwarded").and_then(header_as_str);
+    //let forwarded = headers.get("forwarded").and_then(header_as_str);
     let forwarded_for = headers.get("x-forwarded-for").and_then(header_as_str);
     let real_ip = headers.get("x-real-ip").and_then(header_as_str);
-    pick_best_ip_from_options(forwarded, forwarded_for, real_ip, addr)
+    pick_best_ip_from_options(forwarded_for, real_ip, addr)
 }
 
 /// The source of the address returned
