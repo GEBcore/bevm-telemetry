@@ -134,6 +134,7 @@ fn get_first_addr_from_x_forwarded_for_header(value: &str) -> Option<&str> {
     value.split(',').map(|val| val.trim()).next()
 }
 
+
 fn get_first_addr_from_forwarded_header(value: &str) -> Option<&str> {
     let first_values = value.split(',').next()?;
 
@@ -156,9 +157,6 @@ fn get_first_addr_from_forwarded_header(value: &str) -> Option<&str> {
     None
 }
 
-fn get_first_addr_from_x_forwarded_for_header(value: &str) -> Option<&str> {
-    value.split(",").map(|val| val.trim()).next()
-}
 
 #[cfg(test)]
 mod test {
