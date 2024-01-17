@@ -15,6 +15,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use std::net::{IpAddr, SocketAddr};
+use log::{info, warn};
 
 
 /**
@@ -67,8 +68,6 @@ fn header_as_str(value: &hyper::header::HeaderValue) -> Option<&str> {
 }
 
 fn pick_best_ip_from_options(
-    // Forwarded header value (if present)
-    forwarded: Option<&str>,
     // X-Forwarded-For header value (if present)
     forwarded_for: Option<&str>,
     // X-Real-IP header value (if present)
@@ -76,43 +75,27 @@ fn pick_best_ip_from_options(
     // socket address (if known)
     addr: SocketAddr,
 ) -> (IpAddr, Source) {
-    let realip = forwarded
-        .as_ref()
-        .and_then(|val| {
-            forwarded_for.as_ref().and_then(|val| {
-                let addr = get_first_addr_from_x_forwarded_for_header(val)?;
-                Some((addr, Source::XForwardedForHeader))
-            })
+    let realip = forwarded_for.as_ref().and_then(|val| {
+        // 记录正在处理的 X-Forwarded-For 头部
+        info!("Processing X-Forwarded-For header: {}", val);
+        let addr = get_first_addr_from_x_forwarded_for_header(val)?;
+        Some((addr, Source::XForwardedForHeader))
+    })
+    .or_else(|| {
+        // 处理 X-Real-IP
+        real_ip.as_ref().and_then(|val| {
+            let addr = val.trim();
+            info!("Processing X-Real-Ip header: {}", val);
+            addr.parse::<IpAddr>().ok()
+                .map(|ip_addr| (ip_addr, Source::XRealIpHeader))
         })
-        // .or_else(|| {
-        //     // fall back to X-Forwarded-For
-        //     forwarded_for.as_ref().and_then(|val| {
-        //         let addr = get_first_addr_from_x_forwarded_for_header(val)?;
-        //         Some((addr, Source::XForwardedForHeader))
-        //     })
-        // })
-        .or_else(|| {
-            // fall back to X-Real-IP
-            real_ip.as_ref().and_then(|val| {
-                let addr = val.trim();
-                Some((addr, Source::XRealIpHeader))
-            })
-        })
-        .and_then(|(ip, source)| {
-            // Try parsing assuming it may have a port first,
-            // and then assuming it doesn't.
-            let addr = ip
-                .parse::<SocketAddr>()
-                .map(|s| s.ip())
-                .or_else(|_| ip.parse::<IpAddr>())
-                .ok()?;
-            Some((addr, source))
-        })
-        // Fall back to local IP address if the above fails
-        .unwrap_or((addr.ip(), Source::SocketAddr));
+    })
+    // 如果上述头部都不存在或无效，使用 socket 地址
+    .unwrap_or_else(|| (addr.ip(), Source::SocketAddr));
 
     realip
 }
+
 
 /// Follow <https://datatracker.ietf.org/doc/html/rfc7239> to decode the Forwarded header value.
 /// Roughly, proxies can add new sets of values by appending a comma to the existing list
