@@ -78,7 +78,7 @@ fn pick_best_ip_from_options(
     let realip = forwarded_for.as_ref().and_then(|val| {
         // 记录正在处理的 X-Forwarded-For 头部
         info!("Processing X-Forwarded-For header: {}", val);
-        let addr = get_first_addr_from_x_forwarded_for_header(val)?;
+        let addr = get_last_addr_from_x_forwarded_for_header(val)?;
         Some((addr, Source::XForwardedForHeader))
     })
     .or_else(|| {
@@ -112,9 +112,12 @@ fn pick_best_ip_from_options(
 /// Forwarded: for=192.0.2.43, for=198.51.100.17
 /// ```
 
-fn get_first_addr_from_x_forwarded_for_header(value: &str) -> Option<&str> {
-    // 提取并返回列表中的第一个 IP 地址
-    value.split(',').map(|val| val.trim()).next()
+fn get_last_addr_from_x_forwarded_for_header(value: &str) -> Option<&str> {
+    // 记录整个 X-Forwarded-For 头部的内容
+    info!("X-Forwarded-For header: {}", value);
+
+    // 提取并返回列表中的最后一个 IP 地址
+    value.split(',').map(|val| val.trim()).last()
 }
 
 
