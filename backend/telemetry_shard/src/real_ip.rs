@@ -15,7 +15,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use std::net::{IpAddr, SocketAddr};
-use log::{info, warn};
+use log::info;
 
 
 /**
@@ -68,21 +68,17 @@ fn header_as_str(value: &hyper::header::HeaderValue) -> Option<&str> {
 }
 
 fn pick_best_ip_from_options(
-    // X-Forwarded-For header value (if present)
     forwarded_for: Option<&str>,
-    // X-Real-IP header value (if present)
     real_ip: Option<&str>,
-    // socket address (if known)
     addr: SocketAddr,
 ) -> (IpAddr, Source) {
     let realip = forwarded_for.as_ref().and_then(|val| {
-        // 记录正在处理的 X-Forwarded-For 头部
         info!("Processing X-Forwarded-For header: {}", val);
         let addr = get_last_addr_from_x_forwarded_for_header(val)?;
-        Some((addr, Source::XForwardedForHeader))
+        addr.parse::<IpAddr>().ok()
+            .map(|ip_addr| (ip_addr, Source::XForwardedForHeader))
     })
     .or_else(|| {
-        // 处理 X-Real-IP
         real_ip.as_ref().and_then(|val| {
             let addr = val.trim();
             info!("Processing X-Real-Ip header: {}", val);
@@ -90,12 +86,10 @@ fn pick_best_ip_from_options(
                 .map(|ip_addr| (ip_addr, Source::XRealIpHeader))
         })
     })
-    // 如果上述头部都不存在或无效，使用 socket 地址
-    .unwrap_or_else(|| (addr.ip(), Source::SocketAddr));
+    .unwrap_or((addr.ip(), Source::SocketAddr));
 
     realip
 }
-
 
 /// Follow <https://datatracker.ietf.org/doc/html/rfc7239> to decode the Forwarded header value.
 /// Roughly, proxies can add new sets of values by appending a comma to the existing list
