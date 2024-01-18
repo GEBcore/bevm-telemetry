@@ -74,8 +74,9 @@ fn pick_best_ip_from_options(
 ) -> (IpAddr, Source) {
     let realip = forwarded_for.as_ref().and_then(|val| {
         info!("Processing X-Forwarded-For header: {}", val);
-        let addr = get_last_addr_from_x_forwarded_for_header(val)?;
-        addr.parse::<IpAddr>().ok()
+        let last_addr = get_last_addr_from_x_forwarded_for_header(val)?;
+        info!("Last address from X-Forwarded-For: {}", last_addr);
+        last_addr.parse::<IpAddr>().ok()
             .map(|ip_addr| (ip_addr, Source::XForwardedForHeader))
     })
     .or_else(|| {
@@ -86,8 +87,13 @@ fn pick_best_ip_from_options(
                 .map(|ip_addr| (ip_addr, Source::XRealIpHeader))
         })
     })
-    .unwrap_or((addr.ip(), Source::SocketAddr));
+    .unwrap_or_else(|| {
+        info!("Using socket address: {}", addr.ip());
+        (addr.ip(), Source::SocketAddr)
+    });
 
+    // 打印最终解析出的 IP 地址
+    info!("Resolved real IP: {:?}", realip.0);
     realip
 }
 
@@ -115,27 +121,27 @@ fn get_last_addr_from_x_forwarded_for_header(value: &str) -> Option<&str> {
 }
 
 
-fn get_first_addr_from_forwarded_header(value: &str) -> Option<&str> {
-    let first_values = value.split(',').next()?;
+// fn get_first_addr_from_forwarded_header(value: &str) -> Option<&str> {
+//     let first_values = value.split(',').next()?;
 
-    for pair in first_values.split(';') {
-        let mut parts = pair.trim().splitn(2, '=');
-        let key = parts.next()?;
-        let value = parts.next()?;
+//     for pair in first_values.split(';') {
+//         let mut parts = pair.trim().splitn(2, '=');
+//         let key = parts.next()?;
+//         let value = parts.next()?;
 
-        if key.to_lowercase() == "for" {
-            // trim double quotes if they surround the value:
-            let value = if value.starts_with('"') && value.ends_with('"') {
-                &value[1..value.len() - 1]
-            } else {
-                value
-            };
-            return Some(value);
-        }
-    }
+//         if key.to_lowercase() == "for" {
+//             // trim double quotes if they surround the value:
+//             let value = if value.starts_with('"') && value.ends_with('"') {
+//                 &value[1..value.len() - 1]
+//             } else {
+//                 value
+//             };
+//             return Some(value);
+//         }
+//     }
 
-    None
-}
+//     None
+// }
 
 
 #[cfg(test)]
@@ -154,13 +160,13 @@ mod test {
             (r#"for=192.0.2.43, for=198.51.100.17"#, "192.0.2.43"),
         ];
 
-        for (value, expected) in examples {
-            assert_eq!(
-                get_first_addr_from_forwarded_header(value),
-                Some(expected),
-                "Header value: {}",
-                value
-            );
-        }
+        // for (value, expected) in examples {
+        //     assert_eq!(
+        //         get_first_addr_from_forwarded_header(value),
+        //         Some(expected),
+        //         "Header value: {}",
+        //         value
+        //     );
+        // }
     }
 }
