@@ -73,16 +73,16 @@ fn pick_best_ip_from_options(
     addr: SocketAddr,
 ) -> (IpAddr, Source) {
     let realip = forwarded_for.as_ref().and_then(|val| {
-        info!("Processing X-Forwarded-For header: {}", val);
+        info!("pick_best_ip_from_options Processing X-Forwarded-For header: {}", val);
         let last_addr = get_last_addr_from_x_forwarded_for_header(val)?;
-        info!("Last address from X-Forwarded-For: {}", last_addr);
+        info!("pick_best_ip_from_options Last address from X-Forwarded-For: {}", last_addr);
         last_addr.parse::<IpAddr>().ok()
             .map(|ip_addr| (ip_addr, Source::XForwardedForHeader))
     })
     .or_else(|| {
         real_ip.as_ref().and_then(|val| {
             let addr = val.trim();
-            info!("Processing X-Real-Ip header: {}", val);
+            info!("pick_best_ip_from_options Processing X-Real-Ip header: {}", val);
             addr.parse::<IpAddr>().ok()
                 .map(|ip_addr| (ip_addr, Source::XRealIpHeader))
         })
@@ -93,7 +93,7 @@ fn pick_best_ip_from_options(
     });
 
     // 打印最终解析出的 IP 地址
-    info!("Resolved real IP: {:?}", realip.0);
+    info!("pick_best_ip_from_options Resolved real IP: {:?}", realip.0);
     realip
 }
 
@@ -114,7 +114,7 @@ fn pick_best_ip_from_options(
 
 fn get_last_addr_from_x_forwarded_for_header(value: &str) -> Option<&str> {
     // 记录整个 X-Forwarded-For 头部的内容
-    info!("X-Forwarded-For header: {}", value);
+    info!("get_last_addr_from_x_forwarded_for_header X-Forwarded-For header: {}", value);
 
     // 提取并返回列表中的最后一个 IP 地址
     value.split(',').map(|val| val.trim()).last()
