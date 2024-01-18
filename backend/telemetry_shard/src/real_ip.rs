@@ -67,7 +67,7 @@ pub fn real_ip(addr: SocketAddr, headers: &HeaderMap) -> (IpAddr, Source) {
         }
     }
 
-    let x_forwarded_for = headers.get("X-Forwarded-For").and_then(header_as_str);
+    let x_forwarded_for = headers.get("x-original-forwarded-for").and_then(header_as_str);
     let real_ip = headers.get("x-real-ip").and_then(header_as_str);
 
     pick_best_ip_from_options(x_forwarded_for, real_ip, addr)
