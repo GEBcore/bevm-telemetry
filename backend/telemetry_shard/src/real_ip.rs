@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+use hyper::header::HeaderMap;
+
 use std::net::{IpAddr, SocketAddr};
 use log::info;
 
@@ -57,9 +59,17 @@ impl std::fmt::Display for Source {
     }
 }
 
-pub fn real_ip(addr: SocketAddr, headers: &hyper::HeaderMap) -> (IpAddr, Source) {
+pub fn real_ip(addr: SocketAddr, headers: &HeaderMap) -> (IpAddr, Source) {
+    // 打印所有的头部信息
+    for (key, value) in headers.iter() {
+        if let Ok(value_str) = value.to_str() {
+            info!("Header: {}: {}", key, value_str);
+        }
+    }
+
     let x_forwarded_for = headers.get("X-Forwarded-For").and_then(header_as_str);
     let real_ip = headers.get("x-real-ip").and_then(header_as_str);
+
     pick_best_ip_from_options(x_forwarded_for, real_ip, addr)
 }
 
