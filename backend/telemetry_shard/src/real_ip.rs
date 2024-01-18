@@ -104,7 +104,7 @@ fn get_last_addr_from_x_forwarded_for_header(value: &str) -> Option<&str> {
 
 fn parse_ip_address(value: &str) -> Option<IpAddr> {
     // 如果 IP 地址包含端口号（尤其是 IPv6 地址），尝试只解析 IP 部分
-    let addr = if let Some(index) = value.rfind(']:') {
+    let addr = if let Some(index) = value.rfind("]:") {
         // 对于 IPv6 地址
         &value[..=index]
     } else if let Some(index) = value.rfind(':') {
@@ -117,6 +117,7 @@ fn parse_ip_address(value: &str) -> Option<IpAddr> {
 
     addr.parse::<IpAddr>().ok()
 }
+
 
 #[cfg(test)]
 mod test {
