@@ -67,7 +67,6 @@ pub enum FromShardWebsocket {
     Remove { local_id: ShardNodeId },
     /// The shard is disconnected.
     Disconnected,
-    GetTotalNodes,
 }
 
 /// The aggregator can these messages back to a shard connection.
