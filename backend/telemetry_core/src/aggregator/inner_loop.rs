@@ -67,6 +67,7 @@ pub enum FromShardWebsocket {
     Remove { local_id: ShardNodeId },
     /// The shard is disconnected.
     Disconnected,
+    GetTotalNodes,
 }
 
 /// The aggregator can these messages back to a shard connection.
@@ -515,49 +516,20 @@ impl InnerLoop {
                     new_chain.finalized_block().hash,
                 ));
                 feed_serializer.push(feed_message::ChainStatsUpdate(new_chain.stats()));
+
+                let nodes_to_send = new_chain.nodes_slice().iter().take(1000);
+
+                for (node_id, node) in nodes_to_send.enumerate() {
+                    feed_serializer.push(feed_message::AddedNode(
+                        node_id,
+                        node,
+                        self.expose_node_details,
+                    ));
+                }
+
                 if let Some(bytes) = feed_serializer.into_finalized() {
                     let _ = feed_channel.send(ToFeedWebsocket::Bytes(bytes));
                 }
-
-                // If many (eg 10k) nodes are connected, serializing all of their info takes time.
-                // So, parallelise this with Rayon, but we still send out messages for each node in order
-                // (which is helpful for the UI as it tries to maintain a sorted list of nodes). The chunk
-                // size is the max number of node info we fit into 1 message; smaller messages allow the UI
-                // to react a little faster and not have to wait for a larger update to come in. A chunk size
-                // of 64 means each message is ~32k.
-                use rayon::prelude::*;
-                let all_feed_messages: Vec<_> = new_chain
-                    .nodes_slice()
-                    .par_iter()
-                    .enumerate()
-                    .chunks(64)
-                    .filter_map(|nodes| {
-                        let mut feed_serializer = FeedMessageSerializer::new();
-                        for (node_id, node) in nodes
-                            .iter()
-                            .filter_map(|&(idx, n)| n.as_ref().map(|n| (idx, n)))
-                        {
-                            feed_serializer.push(feed_message::AddedNode(
-                                node_id,
-                                node,
-                                self.expose_node_details,
-                            ));
-                            feed_serializer.push(feed_message::FinalizedBlock(
-                                node_id,
-                                node.finalized().height,
-                                node.finalized().hash,
-                            ));
-                            if node.stale() {
-                                feed_serializer.push(feed_message::StaleNode(node_id));
-                            }
-                        }
-                        feed_serializer.into_finalized()
-                    })
-                    .collect();
-                for bytes in all_feed_messages {
-                    let _ = feed_channel.send(ToFeedWebsocket::Bytes(bytes));
-                }
-
                 // Actually make a note of the new chain subscription:
                 let new_genesis_hash = new_chain.genesis_hash();
                 self.chain_to_feed_conn_ids
