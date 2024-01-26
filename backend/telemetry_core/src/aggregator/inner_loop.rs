@@ -526,6 +526,14 @@ impl InnerLoop {
                         node,
                         self.expose_node_details,
                         ));
+                        feed_serializer.push(feed_message::FinalizedBlock(
+                                node_id,
+                                node.finalized().height,
+                                node.finalized().hash,
+                        ));
+                        if node.stale() {
+                            feed_serializer.push(feed_message::StaleNode(node_id));
+                        }
                     }
                 }
 
