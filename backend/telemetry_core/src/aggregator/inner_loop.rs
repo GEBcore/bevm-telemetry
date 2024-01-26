@@ -520,11 +520,14 @@ impl InnerLoop {
                 let nodes_to_send = new_chain.nodes_slice().iter().take(1000);
 
                 for (node_id, node) in nodes_to_send.enumerate() {
-                    feed_serializer.push(feed_message::AddedNode(
+                    if let Some(node) = node_option {
+                        // 现在 node 是 Node 类型，可以安全地传递
+                        feed_serializer.push(feed_message::AddedNode(
                         node_id,
                         node,
                         self.expose_node_details,
-                    ));
+                        ));
+                    }
                 }
 
                 if let Some(bytes) = feed_serializer.into_finalized() {
