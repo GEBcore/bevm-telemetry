@@ -115,7 +115,8 @@ export class Chains extends React.Component<ChainsProps> {
         className={className}
         onClick={this.subscribe.bind(this, genesisHash)}
       >
-        <span>{label}</span>
+        {/*<span>{label}</span>*/}
+        <span>GEB Mainnet</span>
         <span className="Chains-node-count" title="Node Count">
           {nodeCount}
         </span>
