@@ -101,6 +101,7 @@ export class Chains extends React.Component<ChainsProps> {
 
   private renderChain(chainData: ChainData): React.ReactNode {
     const { label, genesisHash, nodeCount } = chainData;
+    console.log('chainData', chainData);
 
     let className = 'Chains-chain';
 
