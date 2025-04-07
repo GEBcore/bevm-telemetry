@@ -351,6 +351,8 @@ async fn handle_feed_websocket_connection<S>(
 where
     S: futures::Sink<FromFeedWebsocket, Error = anyhow::Error> + Unpin + Send + 'static,
 {
+    let timeout = tokio::time::sleep(Duration::from_secs(feed_timeout));
+
     // unbounded channel so that slow feeds don't block aggregator progress:
     let (tx_to_feed_conn, rx_from_aggregator) = flume::unbounded();
 
@@ -375,7 +377,7 @@ where
     let (send_closer_tx, mut send_closer_rx) = tokio::sync::oneshot::channel::<()>();
 
     // Receive messages from the feed:
-    let recv_handle = tokio::spawn(async move {
+    let mut recv_handle = tokio::spawn(async move {
         loop {
             let mut bytes = Vec::new();
             // Receive a message, or bail if closer called. We don't care about cancel safety;
@@ -415,12 +417,12 @@ where
             }
         }
 
-        drop(send_closer_tx); // Kill the send task if this recv task ends
+       // drop(send_closer_tx); // Kill the send task if this recv task ends
         tx_to_aggregator
     });
 
     // Send messages to the feed:
-    let send_handle = tokio::spawn(async move {
+    let mut send_handle = tokio::spawn(async move {
         'outer: loop {
             let debounce = tokio::time::sleep_until(Instant::now() + Duration::from_millis(75));
 
@@ -481,9 +483,21 @@ where
             debounce.await;
         }
 
-        drop(recv_closer_tx); // Kill the recv task if this send task ends
+        //drop(recv_closer_tx); // Kill the recv task if this send task ends
         ws_send
     });
+
+    tokio::select! {
+        _ = timeout => {
+            log::info!("Feed connection timed out, closing");
+
+            let _ = send_closer_tx.send(());
+            let _ = recv_closer_tx.send(());
+        },
+        _ = &mut recv_handle => {}, // 当接收任务完成时
+        _ = &mut send_handle => {}, // 当发送任务完成时
+    }
+
 
     // If our send/recv tasks are stopped (if one of them dies, they both will),
     // collect the bits we need to hand back from them:

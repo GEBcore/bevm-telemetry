@@ -529,6 +529,7 @@ impl InnerLoop {
                 let all_feed_messages: Vec<_> = new_chain
                     .nodes_slice()
                     .par_iter()
+                    .take(1000)  // limit only 1000
                     .enumerate()
                     .chunks(64)
                     .filter_map(|nodes| {
